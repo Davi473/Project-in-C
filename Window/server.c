@@ -30,10 +30,13 @@ int main() {
     struct sockaddr_in address, peer_addr;
     int addrlen = sizeof(address);
     int port;
+    char name_user[64];
     char ip[64];
 
     printf("Digite a porta para escutar: ");
     scanf("%d", &port);
+    printf("Digite o nome do usuário: ");
+    scanf("%63s", name_user);
     getchar(); // consume newline
 
     // Cria socket servidor
@@ -99,11 +102,13 @@ int main() {
             } else if (buffer[0] == '/') {
                 print_help();
             } else {
-                // Envia mensagem para todos conectados
+                // Envia mensagem para todos conectados com o nome do usuário
+                char msg_envio[BUF_SIZE + 64];
+                snprintf(msg_envio, sizeof(msg_envio), "%s: %s", name_user, buffer);
                 for (int i = 0; i < MAX_CLIENTS; i++) {
                     SOCKET sd = client_sockets[i];
                     if (sd > 0) {
-                        send(sd, buffer, (int)strlen(buffer), 0);
+                        send(sd, msg_envio, (int)strlen(msg_envio), 0);
                     }
                 }
             }
@@ -152,7 +157,15 @@ int main() {
                     closesocket(sd);
                     client_sockets[i] = 0;
                 } else {
-                    printf("Peer: %s", buffer);
+                    // Exibe mensagem recebida
+                    printf("%s", buffer);
+                    // Repasse para outros peers (menos quem enviou)
+                    for (int j = 0; j < MAX_CLIENTS; j++) {
+                        SOCKET other = client_sockets[j];
+                        if (other > 0 && other != sd) {
+                            send(other, buffer, valread, 0);
+                        }
+                    }
                 }
             }
         }
